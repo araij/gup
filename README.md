@@ -6,13 +6,24 @@ GuP is presented in the following paper:
 
 - Junya Arai, Yasuhiro Fujiwara, and Makoto Onizuka. 2023. **GuP: Fast Subgraph Matching by Guard-based Pruning**. *Proceedings of ACM Management of Data* 1, 2, Article 167 (June 2023), 26 pages. https://doi.org/10.1145/3589312
 
-Overview
---------
-
-This repository currently contains a compiled executable of GuP for Linux, aimed to facilitate performance evaluations and comparisons. We will release the source code after refactoring for enhanced clarity and understanding of the algorithm.
-
 :warning:**WARNING**  
 All content within this repository is intended solely for evaluation purposes. Redistribution of any kind is not permitted. For more information, refer to the [`LICENSE`](./LICENSE) file.
+
+How to Build
+------------
+
+1. Install Rust: <https://www.rust-lang.org/tools/install>.
+2. Run `cargo build --release` in the directory where this repository is cloned.
+    - The binary is generated in `./target/release/`
+
+Example commands for Linux:
+
+```shell
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+git clone https://github.com/araij/gup.git
+cd gup
+cargo build --release
+```
 
 Usage
 -----
@@ -28,7 +39,7 @@ gup [OPTIONS] --graph <GRAPH> <QUERY_SET>
 #### Example
 
 ```bash
-./gup --graph examples/input/data_graph examples/input/query_set.yaml
+target/release/gup --graph examples/inputs/data_graph examples/inputs/query_set.yaml
 ```
 
 This command uses the data graph defined by the files `examples/input/data_graph.vertices` and `examples/input/data_graph.edges`.
@@ -75,9 +86,9 @@ A query-set file is a YAML file structured as follows:
 GuP prints a YAML-formatted output as shown below:
 
 ```bash
-$ ./gup --graph examples/inputs/data_graph examples/inputs/query_set.yaml
+$ target/release/gup --graph examples/input/data_graph examples/input/query_set.yaml
 ---
-command: ./gup --graph examples/inputs/data_graph examples/inputs/query_set.yaml
+command: target/release/gup --graph examples/inputs/data_graph examples/inputs/query_set.yaml
 repeat: 1
 graph: examples/inputs/data_graph
 probe: false
@@ -91,42 +102,55 @@ no_backjumping: false
 query_set: examples/inputs/query_set.yaml
 results:
 - index: 0
-  probe:
   match_count: 1
-  search_sec: 0.000039965
-  timed_out: false
+  search_sec: 0.000171016
+- index: 1
 [...]
-whole_sec: 0.000083233
+whole_sec: 0.000394249
 ```
 
 The average query processing time is given by `while_sec / <#query graphs>`.
 
 :memo:**NOTE**  
-`results[i].search_sec` may not be accurate for query graphs with very short execution times; please use `whole_sec` for calculating the average time.
+`results[...].search_sec` may not be accurate for query graphs with very short execution times; please use `whole_sec` for calculating the average time.
 
-If you require information about the number of recursive calls, you can use the `--probe` flag. This flag provides additional details about the search under the `probe` key, including `recursion_count`. Here's an example:
+If you need to count the number of recursive calls, consider using the `--probe` flag. This flag introduces a `probe` key in the YAML output, detailing internal counters about the search process, as shown in the example below. Avoid using this flag for performance measurements due to its additional computational overhead.
 
 ```bash
-$ ./gup --probe --graph examples/inputs/data_graph examples/inputs/query_set.yaml
-[...]
+$ target/release/gup --probe --graph examples/inputs/data_graph examples/inputs/query_set.yaml
+---
+command: target/release/gup --probe --graph examples/inputs/data_graph examples/inputs/query_set.yaml
+repeat: 1
+graph: examples/inputs/data_graph
+probe: true
+match_limit: 100000
+timeout: 18446744073709551615
+parallelism: 1
+reservation_size: 3
+no_vertex_nogood: false
+no_edge_nogood: false
+no_backjumping: false
+query_set: examples/inputs/query_set.yaml
 results:
 - index: 0
   probe:
+    matching_order: [0, 1, 2]
     gcs_vertex_count: 3
     gcs_edge_count: 4
     reservation_total: 0
     reservation_max: 0
     recursion_count: 4
     futile_recursion_count: 0
+    guard_count_reservation: 0
+    guard_count_vertex_nogood: 0
+    guard_count_edge_nogood: 0
     backjump_count: 0
-    removed_edge_count: 0
-    naive_local_candidate_count: 3
     total_bytes_reservation: 144
-    total_bytes_vertex_nogood: 168
-    total_bytes_edge_nogood: 424
-    optimized_total_bytes_edge_nogood: 0
+    total_bytes_vertex_nogood: 144
+    total_bytes_edge_nogood: 0
+    threads:
+    - running_secs: 0.000003122
   match_count: 1
-  search_sec: 0.000060268
-  timed_out: false
+  search_sec: 0.000266643
 [...]
 ```
